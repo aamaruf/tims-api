@@ -55,8 +55,8 @@ jobs:
           context: .
           push: true
           tags: |
-            registry.digitalocean.com/ichinglab2/tims-api-prod:latest
-            registry.digitalocean.com/ichinglab2/tims-api-prod:sha-${{ github.sha }}
+            registry.digitalocean.com/ichinglab3/tims-api-prod:latest
+            registry.digitalocean.com/ichinglab3/tims-api-prod:sha-${{ github.sha }}
 
   deploy-tims-api-image-to-digital-ocean:
     needs: build
@@ -74,7 +74,7 @@ jobs:
             doctl registry login --expiry-seconds 180
 
             echo "pulling the latest image"
-            docker pull registry.digitalocean.com/ichinglab2/tims-api-prod:latest
+            docker pull registry.digitalocean.com/ichinglab3/tims-api-prod:latest
 
             echo "calling shutdown endpoint..."
 
@@ -87,7 +87,7 @@ jobs:
               -dit --name tims-api --network iching_net1 \
               -p 0.0.0.0:4002:4002 \
               --name tims-api \
-              registry.digitalocean.com/ichinglab2/tims-api-prod:latest
+              registry.digitalocean.com/ichinglab3/tims-api-prod:latest
 
             echo "Deploy Done...."
             docker rmi $(docker images --filter "dangling=true" -q --no-trunc)
