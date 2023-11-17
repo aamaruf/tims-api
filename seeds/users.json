@@ -1,0 +1,28 @@
+[
+    {
+        "_id": {
+          "$oid": "654ea923aa4b9d5ecca35681"
+        },
+        "name": "A A Maruf",
+        "email": "aamaruf131@gmail.com",
+        "password": "$2b$10$zXZ1kkVZQ..06DcP/7ze3uMdOm0PzeaNgrbrdpDnzQqfJxsc0SHU2",
+        "phone": "01639409383",
+        "address": "West Shewrapara, Mirpur, Dhaka",
+        "isVerified": true,
+        "isAdmin": true,
+        "isBlocked": true,
+        "itineraries": [],
+        "token": null,
+        "createdAt": {
+          "$date": {
+            "$numberLong": "1699653923341"
+          }
+        },
+        "updatedAt": {
+          "$date": {
+            "$numberLong": "1699653923341"
+          }
+        },
+        "__v": 0
+      }
+]

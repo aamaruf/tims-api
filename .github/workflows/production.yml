@@ -1,0 +1,94 @@
+name: Prepare TIMS API Docker Image to Deploy
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.15.0]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Genarate .env
+        run: |
+          envsubst "`printf '${%s} ' $(sh -c "env|cut -d'=' -f1")`" < ./environments/example.env > ./environments/$NODE_ENV.env
+          echo "$(cat ./environments/$NODE_ENV.env)"
+
+        env:
+          NODE_ENV: production
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+
+
+          REQUEST_TIMEOUT_MS: 60000
+
+      - name: Using Node ${{matrix.node-version}}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - uses: actions/cache@v1
+        with:
+          path: ~/.yarn
+          key: ${{ runner.os }}-node-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - run: yarn install
+
+      - name: Install DigitalOcean Controller
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.ACCESS_TOKEN }}
+      - name: Set up Docker Builder
+        uses: docker/setup-buildx-action@v1
+      - name: Authenticate with DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 180
+      - name: Build and Push to DigitalOcean Container Registry
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: |
+            registry.digitalocean.com/ichinglab2/tims-api-prod:latest
+            registry.digitalocean.com/ichinglab2/tims-api-prod:sha-${{ github.sha }}
+
+  deploy-tims-api-image-to-digital-ocean:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # Droplets already have docker, doctl + auth, and curl installed
+      - name: Deploy api image to DigitalOcean Droplet
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            doctl registry login --expiry-seconds 180
+
+            echo "pulling the latest image"
+            docker pull registry.digitalocean.com/ichinglab2/tims-api-prod:latest
+
+            echo "calling shutdown endpoint..."
+
+            docker stop tims-api || true
+            docker rm tims-api || true
+
+            echo "starting server instance..."
+            docker run -e NODE_ENV=production -d \
+              --restart always \
+              -dit --name tims-api --network iching_net1 \
+              -p 0.0.0.0:4002:4002 \
+              --name tims-api \
+              registry.digitalocean.com/ichinglab2/tims-api-prod:latest
+
+            echo "Deploy Done...."
+            docker rmi $(docker images --filter "dangling=true" -q --no-trunc)
+            echo "Cleanup Done..."
